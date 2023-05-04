@@ -122,6 +122,9 @@ data_oasis = newdata.loc[:,["oasis"]]
 print("shape",newdata.shape[1])
 target = newdata.loc[:,"dieinhosp"].values.reshape(-1,1)
 data=newdata.drop(["dieinhosp"],axis=1,inplace=False)
+data=data.drop(["oasis"],axis=1,inplace=False)
+data=data.drop(["sapsii"],axis=1,inplace=False)
+data=data.drop(["sofa"],axis=1,inplace=False)
 data=data.rename(columns={"weight": "Weight", "gcs": "GCS"
                      ,"peep": "PEEP", "bun": "BUN"
                      ,"aniongap": "Aniongap", "tidal": "Tidal volume"
@@ -132,9 +135,8 @@ data=data.rename(columns={"weight": "Weight", "gcs": "GCS"
                      ,"pt": "PT", "spo2": "Spo2"
                      ,"vent_24time": "24hTV", "ldh": "LDH"
                      ,"ph": "PH", "age": "Age","mbp":"MBP"
-                     ,"glucose":"Glucose","dbp":"DBP"
-                     ,"creatinine":"Creatinine","oasis":"OASIS","sapsii":"SAPSII"
-                     ,"sofa":"SOFA","antibiotic":"Antibiotic","ptt":"PTT"
+                     ,"glucose":"Glucose","dbp":"DBP","hypertension":"Hypertension"
+                     ,"creatinine":"Creatinine","antibiotic":"Antibiotic","ptt":"PTT"
                      ,"albumin":"Albumin","pao2fio2ratio":"P/F"})
 
 
@@ -154,9 +156,8 @@ Xtrain=Xtrain.rename(columns={"weight": "Weight", "gcs": "GCS"
                      ,"vent_24time": "24hTV", "ldh": "LDH"
                      ,"ph": "PH", "age": "Age","mbp":"MBP"
                      ,"glucose":"Glucose","dbp":"DBP"
-                     ,"creatinine":"Creatinine","oasis":"OASIS","sapsii":"SAPSII"
-                     ,"sofa":"SOFA","antibiotic":"Antibiotic","ptt":"PTT"
-                     ,"albumin":"Albumin","pao2fio2ratio":"P/F"})
+                     ,"creatinine":"Creatinine","antibiotic":"Antibiotic","ptt":"PTT"
+                     ,"albumin":"Albumin","pao2fio2ratio":"P/F","hypertension":"Hypertension"})
 Xtest=Xtest.rename(columns={"weight": "Weight", "gcs": "GCS"
                      ,"peep": "PEEP", "bun": "BUN"
                      ,"aniongap": "Aniongap", "tidal": "Tidal volume"
@@ -168,9 +169,8 @@ Xtest=Xtest.rename(columns={"weight": "Weight", "gcs": "GCS"
                      ,"vent_24time": "24hTV", "ldh": "LDH"
                      ,"ph": "PH", "age": "Age","mbp":"MBP"
                      ,"glucose":"Glucose","dbp":"DBP"
-                     ,"creatinine":"Creatinine","oasis":"OASIS","sapsii":"SAPSII"
-                     ,"sofa":"SOFA","antibiotic":"Antibiotic","ptt":"PTT"
-                     ,"albumin":"Albumin","pao2fio2ratio":"P/F"})
+                     ,"creatinine":"Creatinine","antibiotic":"Antibiotic","ptt":"PTT"
+                     ,"albumin":"Albumin","pao2fio2ratio":"P/F","hypertension":"Hypertension"})
 
 
 import xgboost as xgb
@@ -224,8 +224,11 @@ Ypred_oasis = model_oasis.predict(dtest)
 
 fpr = dict()
 tpr = dict()
+thpf = dict()
+thrpf = dict()
 roc_auc = dict()
-plt.figure(figsize=(5,5),dpi=200)
+Jpf = dict()
+plt.figure(figsize=(6,6),dpi=300)
 lw = 1
 label=["XGB","SAPSII","GCS","SOFA","OASIS"]
 
@@ -234,9 +237,10 @@ predY=[Ytest,Ytest_sap,Ytest_gcs,Ytest_sofa,Ytest_oasis]
 predcolor=["red","darkorange","purple","blue","darkgreen","darkred","brown"]
 for j in range(len(pred)):
     for i in range(1):
-        fpr[i], tpr[i], _ = roc_curve(predY[j][:, i], pred[j][:,i+1])
+        fpr[i], tpr[i], thpf[i] = roc_curve(predY[j][:, i], pred[j][:,i+1])
         roc_auc[i] = auc(fpr[i], tpr[i])
-    
+    Jpf[j] = tpr[0] - fpr[0]
+    thrpf[j] = thpf[0]
     plt.plot(
         fpr[0],
         tpr[0],
@@ -245,6 +249,7 @@ for j in range(len(pred)):
         label="%s (AUC = %0.3f)" %(label[j], roc_auc[0])
     )
     #sns.regplot(x=fpr[0], y=tpr[0], ci=95)
+#pd.DataFrame(Ypred[:,1]>thrpf[0][argmax(Jpf[0])]).value_counts()
 plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
 plt.xlim([-0.05, 1.05])
 plt.ylim([-0.05, 1.05])
@@ -290,11 +295,11 @@ right.close()
 #Ytest = pd.read_csv('D:/physionet.org/files/Ytest2.csv').iloc[:,1:].values
 #model = xgb.Booster()
 #model.load_model('D:/physionet.org/files/model2.json')
-Xtrain.to_csv('D:/physionet.org/files/Xtrain2.csv')
-pd.DataFrame(Ytrain).to_csv('D:/physionet.org/files/Ytrain2.csv')
-Xtest.to_csv('D:/physionet.org/files/Xtest2.csv')
-pd.DataFrame(Ytest).to_csv('D:/physionet.org/files/Ytest2.csv')
-model.save_model('D:/physionet.org/files/model2.json')
+#Xtrain.to_csv('D:/physionet.org/files/Xtrain2.csv')
+#pd.DataFrame(Ytrain).to_csv('D:/physionet.org/files/Ytrain2.csv')
+#Xtest.to_csv('D:/physionet.org/files/Xtest2.csv')
+#pd.DataFrame(Ytest).to_csv('D:/physionet.org/files/Ytest2.csv')
+#model.save_model('D:/physionet.org/files/model2.json')
 from sklearn.svm import SVC
 from time import time 
 import datetime
@@ -329,8 +334,11 @@ lrl2 = lrl2.fit(Xtrain,Ytrain.ravel())
 Ypred_lr=lrl2.predict_proba(Xtest)
 fpr = dict()
 tpr = dict()
+th = dict()
+thr = dict()
 roc_auc = dict()
-plt.figure(figsize=(5,5),dpi=200)
+J = dict()
+plt.figure(figsize=(6,6),dpi=300)
 lw = 1
 label=["XGB","LR","SVM","DNN"]
 pred=[Ypred,Ypred_lr,Ypred_svm,Ypred_dnn]
@@ -338,9 +346,10 @@ predY=[Ytest,Ytest,Ytest,Ytest]
 
 for j in range(len(label)):
     for i in range(1):
-        fpr[i], tpr[i], _ = roc_curve(Ytest[:, i], pred[j][:,i+1])
+        fpr[i], tpr[i], th[i] = roc_curve(Ytest[:, i], pred[j][:,i+1])
         roc_auc[i] = auc(fpr[i], tpr[i])
-    
+    J[j] = tpr[0] - fpr[0]
+    thr[j] = th[0]
     plt.plot(
         fpr[0],
         tpr[0],
@@ -359,11 +368,11 @@ plt.savefig('D:/physionet.org/files/pic/XBGvsMLsBY.tif')
 
 #本院数据处理
 #load model
-#Xtrain = pd.read_csv('D:/physionet.org/files/Xtrain2.csv').iloc[:,1:]
-#Xtest = pd.read_csv('D:/physionet.org/files/Xtest2.csv').iloc[:,1:]
-#Ytrain = pd.read_csv('D:/physionet.org/files/Ytrain2.csv').iloc[:,1:].values
-#Ytest = pd.read_csv('D:/physionet.org/files/Ytest2.csv').iloc[:,1:].values
-#model.load_model('D:/physionet.org/files/model2.json')
+Xtrain = pd.read_csv('D:/physionet.org/files/Xtrain2.csv').iloc[:,1:]
+Xtest = pd.read_csv('D:/physionet.org/files/Xtest2.csv').iloc[:,1:]
+Ytrain = pd.read_csv('D:/physionet.org/files/Ytrain2.csv').iloc[:,1:].values
+Ytest = pd.read_csv('D:/physionet.org/files/Ytest2.csv').iloc[:,1:].values
+model.load_model('D:/physionet.org/files/model2.json')
 patient_filePath_wfy='D:/physionet.org/files/本院脓毒症4_by.csv'
 bydata = pd.read_csv(patient_filePath_wfy)
 bydata.drop(["pid"],axis=1,inplace=True)
@@ -420,10 +429,13 @@ bydata.drop(["apache"],axis=1,inplace=True)
 bydata.loc[bydata["dieinhosp"]!=4,"dieinhosp"]=0
 bydata.loc[bydata["dieinhosp"]==4,"dieinhosp"]=1
 target_by = bydata.loc[:,"dieinhosp"].values.reshape(-1,1)
-data_by=bydata.drop(["dieinhosp"],axis=1,inplace=False)
+data_by=bydata.drop(["dieinhosp"],axis=1,inplace=True)
+data_by=bydata.drop(["oasis"],axis=1,inplace=True)
+data_by=bydata.drop(["sofa"],axis=1,inplace=True)
+data_by=bydata.drop(["sapsii"],axis=1,inplace=True)
 #本院数据预处理 end
 
-data=data_by.rename(columns={"weight": "Weight", "gcs": "GCS"
+data=bydata.rename(columns={"weight": "Weight", "gcs": "GCS"
                      ,"peep": "PEEP", "bun": "BUN"
                      ,"aniongap": "Aniongap", "tidal": "Tidal volume"
                      ,"alp": "ALP", "resp_rate": "Respiratory Rate"
@@ -431,11 +443,10 @@ data=data_by.rename(columns={"weight": "Weight", "gcs": "GCS"
                      ,"lactate": "Lactate", "platelets": "Platelets"
                      ,"fio2": "Fio2", "temperature": "Temperature"
                      ,"pt": "PT", "spo2": "Spo2"
-                     , "ldh": "LDH"
+                     , "ldh": "LDH","hypertension":"Hypertension"
                      ,"ph": "PH", "age": "Age","mbp":"MBP"
                      ,"glucose":"Glucose","dbp":"DBP"
-                     ,"creatinine":"Creatinine","oasis":"OASIS","sapsii":"SAPSII"
-                     ,"sofa":"SOFA","antibiotic":"Antibiotic","ptt":"PTT"
+                     ,"creatinine":"Creatinine","antibiotic":"Antibiotic","ptt":"PTT"
                      ,"albumin":"Albumin","pao2fio2ratio":"P/F","vent_24time":"24hTV"})
 
 #温附一病人数据ROC绘图
@@ -458,17 +469,22 @@ Ypred_by_dnn = dnn.predict_proba(data)
 
 fpr = dict()
 tpr = dict()
+thby = dict()
+thrby = dict()
 roc_auc = dict()
-plt.figure(figsize=(5,5),dpi=200)
+Jby = dict()
+
+plt.figure(figsize=(6,6),dpi=300)
 lw = 1
 label=["XGB","LR","SVM","DNN"]
 pred=[Ypred_by,Ypred_by_lr,Ypred_by_svm,Ypred_by_dnn]
 predcolor=["red","darkorange","purple","blue"]
 for j in range(len(label)):
     for i in range(1):
-        fpr[i], tpr[i], _ = roc_curve(target_by[:, i], pred[j][:,i+1])
+        fpr[i], tpr[i], thby[i] = roc_curve(target_by[:, i], pred[j][:,i+1])
         roc_auc[i] = auc(fpr[i], tpr[i])
-    
+    Jby[j] = tpr[0] - fpr[0]
+    thrby[j] = thby[0]
     plt.plot(
         fpr[0],
         tpr[0],
@@ -489,28 +505,28 @@ plt.savefig('D:/physionet.org/files/pic/XBGvsMLsBY2.tif')
 #sap单因素预测
 
 dtest = xgb.DMatrix(bydata_sap)
-Ypred_sap = model_sap.predict(dtest)
+Ypred_by_sap = model_sap.predict(dtest)
 #gcs单因素预测
 
 dtest = xgb.DMatrix(bydata_gcs)
-Ypred_gcs = model_gcs.predict(dtest)
+Ypred_by_gcs = model_gcs.predict(dtest)
 #sofa单因素预测
 
 dtest = xgb.DMatrix(bydata_sofa)
-Ypred_sofa = model_sofa.predict(dtest)
+Ypred_by_sofa = model_sofa.predict(dtest)
 #oasis单因素预测
 
 dtest = xgb.DMatrix(bydata_oasis)
-Ypred_oasis = model_oasis.predict(dtest)
+Ypred_by_oasis = model_oasis.predict(dtest)
 
 fpr = dict()
 tpr = dict()
 roc_auc = dict()
-plt.figure(figsize=(5,5),dpi=200)
+plt.figure(figsize=(6,6),dpi=300)
 lw = 1
 label=["XGB","SAPSII","GCS","SOFA","OASIS"]
 
-pred=[Ypred_by,Ypred_sap,Ypred_gcs,Ypred_sofa,Ypred_oasis]
+pred=[Ypred_by,Ypred_by_sap,Ypred_by_gcs,Ypred_by_sofa,Ypred_by_oasis]
 predY=[target_by,target_by,target_by,target_by,target_by]
 predcolor=["red","darkorange","purple","blue","darkgreen","darkred","brown"]
 for j in range(len(pred)):
@@ -535,45 +551,83 @@ plt.ylabel("Sensitivity")
 plt.legend(loc="lower right")
 plt.savefig('D:/physionet.org/files/pic/本院评分.tif')
 plt.show()
-
+from sklearn.metrics import confusion_matrix
 def sensitivityCalc(Predictions, Labels):
-    MCM = multilabel_confusion_matrix(Labels, Predictions,
-                                      sample_weight=None,
-                                      labels=None, samplewise=None)
-    # MCM此处是 5 * 2 * 2的混淆矩阵（ndarray格式），5表示的是5分类
+    MCM = confusion_matrix(Labels, Predictions)
+    fp_sum = MCM[0][0]# TP 预测为0实际为0
+    fn_sum = MCM[0][1] # FP 预测为0实际为1
 
-    # 切片操作，获取每一个类别各自的 tn, fp, tp, fn
-    tn_sum = MCM[0,1][1]# True Negative
-    fp_sum = MCM[0,0][1] # False Positive
-
-    tp_sum = MCM[0,0][0] # True Positive
-    fn_sum = MCM[0,1][0] # False Negative
+    tn_sum = MCM[1][0] # FN 预测为1实际为0
+    tp_sum = MCM[1][1] # TN 预测为1实际为1
 
     # 这里加1e-6，防止 0/0的情况计算得到nan，即tp_sum和fn_sum同时为0的情况
     Condition_negative = tp_sum + fn_sum + 1e-6
 
     sensitivity = tp_sum / Condition_negative
-    macro_sensitivity = np.average(sensitivity, weights=None)
-
-    micro_sensitivity = np.sum(tp_sum) / (np.sum(tp_sum)+np.sum(fn_sum))
-
-    return micro_sensitivity
+  
+    return sensitivity
 def specificityCalc(Predictions, Labels):
-    MCM = multilabel_confusion_matrix(Labels, Predictions,
-                                      sample_weight=None,
-                                      labels=None, samplewise=None)
-    tn_sum = MCM[0,1][1]# True Negative
-    fp_sum = MCM[0,0][1] # False Positive
+    MCM = confusion_matrix(Labels, Predictions)
+    fp_sum = MCM[0][0]# TP 预测为0实际为0
+    fn_sum = MCM[0][1] # FP 预测为0实际为1
 
-    tp_sum = MCM[0,0][0] # True Positive
-    fn_sum = MCM[0,1][0] # False Negative
+    tn_sum = MCM[1][0] # FN 预测为1实际为0
+    tp_sum = MCM[1][1] # TN 预测为1实际为1
 
     Condition_negative = tn_sum + fp_sum + 1e-6
 
     Specificity = tn_sum / Condition_negative
-    macro_specificity = np.average(Specificity, weights=None)
+    ppv = tp_sum/(tp_sum+fp_sum)
+    npv = tn_sum/(tn_sum+fn_sum)
+    return Specificity,ppv,npv
+def argmax(array):
+    val=-1000
+    index=-1
+    for i in range(len(array)):
+        if val<array[i]:
+            val=array[i]
+            index=i
+    return index
+label=["XGB","LR","SVM","DNN","SAPSII","GCS","SOFA","OASIS"]
+pred=[Ypred,Ypred_lr,Ypred_svm,Ypred_dnn,Ypred_sap,Ypred_gcs,Ypred_sofa,Ypred_oasis]
 
-    micro_specificity = np.sum(tn_sum) / (np.sum(fp_sum)+np.sum(tn_sum))
-    ppv = np.sum(tp_sum)/(np.sum(tp_sum)+np.sum(fp_sum))
-    npv = np.sum(tn_sum)/(np.sum(tn_sum)+np.sum(fn_sum))
-    return micro_specificity,ppv,npv
+Ypredth =(Ypred[:,1]>thr[0][argmax(J[0])])+0
+Ypred_lrth =(Ypred_lr[:,1]>thr[1][argmax(J[1])])+0
+Ypred_svmth =(Ypred_svm[:,1]>thr[2][argmax(J[2])])+0
+Ypred_dnnth =(Ypred_dnn[:,1]>thr[3][argmax(J[3])])+0
+Ypred_sapth =(Ypred_sap[:,1]>thrpf[1][argmax(Jpf[1])])+0
+Ypred_gcsth =(Ypred_gcs[:,1]>thrpf[2][argmax(Jpf[2])])+0
+Ypred_sofath =(Ypred_sofa[:,1]>thrpf[3][argmax(Jpf[3])])+0
+Ypred_oasisth =(Ypred_oasis[:,1]>thrpf[4][argmax(Jpf[4])])+0
+predth=[Ypredth,Ypred_lrth,Ypred_svmth,Ypred_dnnth,Ypred_sapth,Ypred_gcsth,Ypred_sofath,Ypred_oasisth] 
+index=[argmax(J[0]),argmax(J[1]),argmax(J[2]),argmax(J[3]),argmax(Jpf[1]),argmax(Jpf[2]),argmax(Jpf[3]),argmax(Jpf[4])]
+predY=[Ytest,Ytest,Ytest,Ytest,Ytest_sap,Ytest_gcs,Ytest_sofa,Ytest_oasis]       
+columns=["auc","se","sp","ac","f1_score","ppv","npv"]
+report=pd.DataFrame(columns=columns);
+for i in range(len(label)):
+    df_row = report.shape[0]
+    report.loc[df_row] = [0.000,0.000,0.000,0.000,0.000,0.000,0.000]
+   
+    fpr[i], tpr[i], _ = roc_curve(predY[i][:, 0], pred[i][:,1])
+    roc_auc[i] = auc(fpr[i], tpr[i]) 
+    report.loc[df_row]["ac"] = accuracy_score(predY[i][:, 0], predth[i])
+    report.loc[df_row]["auc"] = roc_auc[i] 
+    report.loc[df_row]["se"] = tpr[i][index[i]]
+
+    report.loc[df_row]["sp"] = 1-fpr[i][index[i]]
+    MCM = confusion_matrix(predY[i][:, 0], predth[i])
+    tn_sum = MCM[0][0]# TP 预测为0实际为0
+    fn_sum = MCM[0][1] # FP 预测为0实际为1
+
+    fp_sum = MCM[1][0] # FN 预测为1实际为0
+    tp_sum = MCM[1][1] # TN 预测为1实际为1
+    report.loc[df_row]["ppv"] = tp_sum/(tp_sum + fp_sum)
+    report.loc[df_row]["npv"] = tn_sum/(tn_sum + fn_sum)
+    report.loc[df_row]["f1_score"] =f1_score(predY[i][:, 0], predth[i])
+
+
+
+
+
+
+
